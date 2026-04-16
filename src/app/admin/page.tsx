@@ -25,18 +25,23 @@ export default function AdminDashboard() {
     setSuppliers(suppliersList)
 
     // 2. Fetch Matrix Data (Combine products, their supplier prices, and the calculated final price)
-    const { data: pData } = await supabase
+    const { data: pData, error: pError } = await supabase
       .from("products")
       .select(`
         id, 
         ref_no, 
         name,
-        final_prices(lowest_price, final_price),
-        pricing_config(margin_type, margin_value, override_price),
-        supplier_prices(supplier_id, price)
+        final_prices:final_prices!product_id(lowest_price, final_price),
+        pricing_config:pricing_config!product_id(margin_type, margin_value, override_price),
+        supplier_prices:supplier_prices!product_id(supplier_id, price)
       `)
       .order("ref_no")
 
+    if (pError) {
+      console.error("Supabase Matrix Error:", pError)
+    }
+
+    console.log("Matrix Data Raw:", pData) // CHECK THIS IN BROWSER CONSOLE (F12)
     setData(pData || [])
     
     // Stats calculation
@@ -104,9 +109,13 @@ export default function AdminDashboard() {
                 <tr><td colSpan={suppliers.length + 3} className="p-12 text-center text-brand-slate/60">No data available.</td></tr>
               ) : (
                 data.map((row) => {
-                  const finalData = row.final_prices?.[0]
-                  const lowest = finalData?.lowest_price
-                  const final = finalData?.final_price
+                  // Safely extract from joined data (handles both Array and Object responses)
+                  const finalEntry = Array.isArray(row.final_prices) 
+                    ? row.final_prices[0] 
+                    : row.final_prices
+
+                  const lowest = finalEntry ? finalEntry.lowest_price : null
+                  const final = finalEntry ? finalEntry.final_price : null
 
                   return (
                     <tr key={row.id} className="hover:bg-brand-gray/30 transition-colors group">
@@ -118,7 +127,7 @@ export default function AdminDashboard() {
                       </td>
                       
                       {suppliers.map(s => {
-                        const sPrice = row.supplier_prices.find((p: any) => p.supplier_id === s.id)
+                        const sPrice = row.supplier_prices?.find((p: any) => p.supplier_id === s.id)
                         const isLowest = sPrice && lowest && Number(sPrice.price) === Number(lowest)
                         
                         return (
@@ -135,13 +144,13 @@ export default function AdminDashboard() {
 
                       <td className="px-6 py-4 text-center bg-brand-pink/10">
                         <span className="text-sm font-black text-brand-red">
-                          {lowest ? `$${Number(lowest).toFixed(2)}` : "—"}
+                          {lowest !== null && lowest !== undefined ? `$${Number(lowest).toFixed(2)}` : "—"}
                         </span>
                       </td>
 
                       <td className="px-6 py-4 text-center bg-brand-red-subtle/10">
                         <span className="text-base font-black text-brand-maroon">
-                          {final ? `$${Number(final).toFixed(2)}` : "—"}
+                          {final !== null && final !== undefined ? `$${Number(final).toFixed(2)}` : "—"}
                         </span>
                       </td>
                     </tr>

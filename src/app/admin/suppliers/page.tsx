@@ -57,7 +57,7 @@ export default function SuppliersPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-brand-maroon">Supplier Directory</h2>
-        <button 
+        <button
           onClick={() => setIsModalOpen(true)}
           className="flex items-center gap-2 px-4 py-2 bg-brand-red text-white rounded-xl hover:bg-brand-maroon transition-colors shadow-md text-sm font-medium"
         >
@@ -86,7 +86,7 @@ export default function SuppliersPage() {
                   <Trash2 size={18} />
                 </button>
               </div>
-              
+
               <h3 className="font-bold text-brand-maroon text-lg truncate">{supplier.name}</h3>
               <p className="text-brand-slate/70 text-sm mb-6 flex items-center gap-2">
                 <Mail size={14} />
@@ -96,7 +96,7 @@ export default function SuppliersPage() {
               <div className="space-y-3">
                 <p className="text-[10px] font-bold text-brand-slate/40 uppercase tracking-widest">Access Link</p>
                 <div className="flex gap-2">
-                  <button 
+                  <button
                     onClick={() => copyToClipboard(supplier.access_token, supplier.id)}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-gray hover:bg-brand-red-subtle text-brand-slate hover:text-brand-red border border-transparent hover:border-brand-red/20 rounded-xl text-xs font-bold transition-all"
                   >
@@ -106,7 +106,7 @@ export default function SuppliersPage() {
                       <><Copy size={14} /> Copy Portal Link</>
                     )}
                   </button>
-                  <a 
+                  <a
                     href={`/portal/${supplier.access_token}`}
                     target="_blank"
                     className="p-2.5 bg-brand-gray hover:bg-brand-red-subtle text-brand-slate hover:text-brand-red rounded-xl transition-all"
@@ -124,33 +124,33 @@ export default function SuppliersPage() {
         <form onSubmit={handleAddSupplier} className="space-y-4">
           <div className="space-y-2">
             <label className="text-xs font-bold text-brand-maroon uppercase tracking-wider">Supplier Name</label>
-            <input 
+            <input
               required
-              type="text" 
-              placeholder="e.g. Acme Beverages Ltd."
+              type="text"
+              placeholder="e.g. Gbadebo"
               className="w-full px-4 py-2.5 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red/50 transition-all text-sm"
               value={newSupplier.name}
-              onChange={(e) => setNewSupplier({...newSupplier, name: e.target.value})}
+              onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold text-brand-maroon uppercase tracking-wider">Contact Email / Phone</label>
-            <input 
-              type="text" 
-              placeholder="e.g. sales@acme.com"
+            <label className="text-xs font-bold text-brand-maroon uppercase tracking-wider">Contact Email / Phone (Optional)</label>
+            <input
+              type="text"
+              placeholder="e.g. gbadebo@gmail.com"
               className="w-full px-4 py-2.5 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red/50 transition-all text-sm"
               value={newSupplier.contact}
-              onChange={(e) => setNewSupplier({...newSupplier, contact: e.target.value})}
+              onChange={(e) => setNewSupplier({ ...newSupplier, contact: e.target.value })}
             />
           </div>
           <p className="text-xs text-brand-slate/60 bg-brand-pink/50 p-3 rounded-xl border border-brand-red/10 mt-4 leading-relaxed">
             Registering a supplier generates a unique security token. You can share the portal link with them once registered.
           </p>
           <div className="pt-4 flex gap-3">
-             <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2.5 border border-brand-red-subtle text-brand-slate font-medium rounded-xl hover:bg-brand-gray transition-colors">Cancel</button>
-             <button type="submit" disabled={isSubmitting} className="flex-1 px-4 py-2.5 bg-brand-red text-white font-medium rounded-xl hover:bg-brand-maroon transition-colors shadow-lg shadow-brand-red/20 disabled:opacity-50">
-               {isSubmitting ? "Registering..." : "Add Supplier"}
-             </button>
+            <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2.5 border border-brand-red-subtle text-brand-slate font-medium rounded-xl hover:bg-brand-gray transition-colors">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="flex-1 px-4 py-2.5 bg-brand-red text-white font-medium rounded-xl hover:bg-brand-maroon transition-colors shadow-lg shadow-brand-red/20 disabled:opacity-50">
+              {isSubmitting ? "Registering..." : "Add Supplier"}
+            </button>
           </div>
         </form>
       </Modal>
