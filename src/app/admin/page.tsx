@@ -94,7 +94,8 @@ export default function AdminDashboard() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-brand-gray/50 border-b border-brand-red-subtle">
-                <th className="px-6 py-4 text-[10px] font-bold text-brand-maroon uppercase tracking-widest sticky left-0 bg-brand-gray/50 min-w-[240px]">Product Info</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-brand-maroon uppercase tracking-widest sticky left-0 bg-brand-gray/50 z-20 border-r border-brand-red-subtle/30 w-16 text-center">S/N</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-brand-maroon uppercase tracking-widest sticky left-16 bg-brand-gray/50 z-20 border-r border-brand-red-subtle/30 min-w-[240px]">Product Info</th>
                 {suppliers.map(s => (
                   <th key={s.id} className="px-6 py-4 text-[10px] font-bold text-brand-slate uppercase tracking-widest min-w-[120px] text-center">{s.name}</th>
                 ))}
@@ -104,11 +105,11 @@ export default function AdminDashboard() {
             </thead>
             <tbody className="divide-y divide-brand-red-subtle/50">
               {loading ? (
-                <tr><td colSpan={suppliers.length + 3} className="p-12 text-center animate-pulse">Synchronizing pricing engine...</td></tr>
+                <tr><td colSpan={suppliers.length + 4} className="p-12 text-center animate-pulse">Synchronizing pricing engine...</td></tr>
               ) : data.length === 0 ? (
-                <tr><td colSpan={suppliers.length + 3} className="p-12 text-center text-brand-slate/60">No data available.</td></tr>
+                <tr><td colSpan={suppliers.length + 4} className="p-12 text-center text-brand-slate/60">No data available.</td></tr>
               ) : (
-                data.map((row) => {
+                data.map((row, index) => {
                   // Safely extract from joined data (handles both Array and Object responses)
                   const finalEntry = Array.isArray(row.final_prices) 
                     ? row.final_prices[0] 
@@ -119,7 +120,10 @@ export default function AdminDashboard() {
 
                   return (
                     <tr key={row.id} className="hover:bg-brand-gray/30 transition-colors group">
-                      <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-brand-gray transition-colors border-r border-brand-red-subtle/30">
+                      <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-brand-gray transition-colors border-r border-brand-red-subtle/30 text-center text-[10px] font-bold text-brand-slate/40">
+                        {index + 1}
+                      </td>
+                      <td className="px-6 py-4 sticky left-16 bg-white group-hover:bg-brand-gray transition-colors border-r border-brand-red-subtle/30">
                         <div className="flex items-center gap-3">
                           <span className="font-mono text-[10px] font-bold text-brand-red bg-brand-pink px-1.5 py-0.5 rounded">{row.ref_no}</span>
                           <span className="text-sm font-bold text-brand-maroon truncate max-w-[140px]">{row.name}</span>

@@ -2,91 +2,156 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase"
-import { Plus, Search, Filter, MoreVertical, Edit2, Trash2, ArrowUpDown } from "lucide-react"
-
+import { Plus, Search, Filter, Edit2, Trash2, Save, Loader2, Percent, DollarSign, Settings } from "lucide-react"
 import { Modal } from "@/components/ui/Modal"
-
-import Link from "next/link"
 
 interface Product {
   id: string
   ref_no: string
   name: string
   category: string
+  category_id: string
   description: string
   created_at: string
+  pricing_config?: any[]
+  categories?: { name: string }
 }
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [newProduct, setNewProduct] = useState({
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const [formData, setFormData] = useState({
+    id: "",
     ref_no: "",
     name: "",
-    category: "",
-    description: ""
+    category_id: "",
+    description: "",
+    margin_type: "percentage",
+    margin_value: "15",
+    override_price: ""
   })
-  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const supabase = createClient()
 
   useEffect(() => {
-    fetchProducts()
+    fetchData()
   }, [])
 
-  async function fetchProducts() {
+  async function fetchData() {
     setLoading(true)
-    const { data, error } = await supabase
+
+    // Fetch Products with category joined
+    const { data: pData } = await supabase
       .from("products")
-      .select("*")
+      .select(`*, pricing_config(*), categories(name)`)
       .order("ref_no", { ascending: true })
 
-    if (data) setProducts(data)
+    // Fetch Categories for dropdown
+    const { data: cData } = await supabase
+      .from("categories")
+      .select("*")
+      .order("name", { ascending: true })
+
+    if (pData) setProducts(pData)
+    if (cData) setCategories(cData)
     setLoading(false)
   }
 
-  async function handleAddProduct(e: React.FormEvent) {
+  const handleOpenAdd = () => {
+    setIsEditing(false)
+    setFormData({
+      id: "",
+      ref_no: "",
+      name: "",
+      category_id: "",
+      description: "",
+      margin_type: "percentage",
+      margin_value: "15",
+      override_price: ""
+    })
+    setIsModalOpen(true)
+  }
+
+  const handleOpenEdit = (product: any) => {
+    setIsEditing(true)
+    const config = product.pricing_config?.[0] || {}
+    setFormData({
+      id: product.id,
+      ref_no: product.ref_no,
+      name: product.name,
+      category_id: product.category_id || "",
+      description: product.description || "",
+      margin_type: config.margin_type || "percentage",
+      margin_value: config.margin_value ? config.margin_value.toString() : "15",
+      override_price: config.override_price ? config.override_price.toString() : ""
+    })
+    setIsModalOpen(true)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setIsSubmitting(true)
 
+    const productPayload = {
+      name: formData.name,
+      ref_no: formData.ref_no,
+      category_id: formData.category_id || null,
+      description: formData.description
+    }
+
     try {
-      // 1. Insert Product
-      const { data: product, error: pError } = await supabase
-        .from("products")
-        .insert([newProduct])
-        .select()
-        .single()
+      if (isEditing) {
+        // Update Product
+        await supabase.from("products").update(productPayload).eq("id", formData.id)
 
-      if (pError) throw pError
+        // Upsert Config
+        await supabase.from("pricing_config").upsert({
+          product_id: formData.id,
+          margin_type: formData.margin_type,
+          margin_value: parseFloat(formData.margin_value),
+          override_price: formData.override_price ? parseFloat(formData.override_price) : null
+        })
+      } else {
+        // Insert Product
+        const { data: newProd } = await supabase.from("products").insert([productPayload]).select().single()
 
-      // 2. Initialize Pricing Config (Default 15% margin)
-      const { error: cError } = await supabase
-        .from("pricing_config")
-        .insert([{
-          product_id: product.id,
-          margin_type: "percentage",
-          margin_value: 15.00
-        }])
-
-      if (cError) throw cError
+        // Insert Config
+        if (newProd) {
+          await supabase.from("pricing_config").insert([{
+            product_id: newProd.id,
+            margin_type: formData.margin_type,
+            margin_value: parseFloat(formData.margin_value),
+            override_price: formData.override_price ? parseFloat(formData.override_price) : null
+          }])
+        }
+      }
 
       setIsModalOpen(false)
-      setNewProduct({ ref_no: "", name: "", category: "", description: "" })
-      fetchProducts()
+      fetchData()
     } catch (err) {
-      console.error("Error adding product:", err)
-      alert("Failed to add product. Check if ref_no is unique.")
+      console.error(err)
+      alert("Error saving product details.")
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  async function deleteProduct(id: string) {
+    if (!confirm("Are you sure? This will remove all related supplier prices.")) return
+    await supabase.from("products").delete().eq("id", id)
+    fetchData()
+  }
+
+  const filteredProducts = products.filter(p =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.ref_no.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
@@ -96,141 +161,210 @@ export default function ProductsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border border-brand-red-subtle shadow-sm">
         <div className="relative w-full sm:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-slate/50" size={18} />
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Search by ref or name..."
             className="w-full pl-10 pr-4 py-2 bg-brand-gray border border-transparent focus:border-brand-red/30 focus:bg-white rounded-xl outline-none transition-all text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
+
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-brand-red text-white rounded-xl hover:bg-brand-maroon transition-colors shadow-md shadow-brand-red/20 text-sm font-medium"
+          <button
+            onClick={handleOpenAdd}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-brand-red text-white rounded-xl hover:bg-brand-maroon transition-colors shadow-md shadow-brand-red/20 text-sm font-black uppercase tracking-widest"
           >
             <Plus size={18} />
             Add Product
           </button>
-          <button className="p-2 text-brand-slate hover:bg-brand-pink rounded-xl transition-colors">
+          <button className="p-2.5 text-brand-slate hover:bg-brand-pink rounded-xl transition-colors">
             <Filter size={18} />
           </button>
         </div>
       </div>
 
       {/* Products Table */}
-      <div className="bg-white rounded-2xl border border-brand-red-subtle shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[2rem] border border-brand-red-subtle shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-brand-gray/50 border-b border-brand-red-subtle">
-                <th className="px-6 py-4 text-xs font-semibold text-brand-maroon uppercase tracking-wider">Ref No</th>
-                <th className="px-6 py-4 text-xs font-semibold text-brand-maroon uppercase tracking-wider">Product Name</th>
-                <th className="px-6 py-4 text-xs font-semibold text-brand-maroon uppercase tracking-wider">Category</th>
-                <th className="px-6 py-4 text-xs font-semibold text-brand-maroon uppercase tracking-wider text-right">Actions</th>
+              <tr className="bg-brand-gray/50 border-b border-brand-red-subtle ">
+                <th className="px-6 py-4 text-xs font-semibold text-brand-maroon uppercase tracking-[0.2em] w-16">S/N</th>
+                <th className="px-6 py-4 text-xs font-semibold text-brand-maroon uppercase tracking-[0.2em]">Ref No</th>
+                <th className="px-6 py-4 text-xs font-semibold text-brand-maroon uppercase tracking-[0.2em]">Product Name</th>
+                <th className="px-6 py-4 text-xs font-semibold text-brand-maroon uppercase tracking-[0.2em]">Category</th>
+                <th className="px-6 py-4 text-xs font-semibold text-brand-maroon uppercase tracking-[0.2em]">Profit Margin</th>
+                <th className="px-6 py-4 text-xs font-semibold text-brand-maroon uppercase tracking-[0.2em] text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-brand-red-subtle/50">
+            <tbody className="divide-y divide-brand-red-subtle/30">
               {loading ? (
-                <tr><td colSpan={4} className="p-8 text-center animate-pulse">Loading products...</td></tr>
+                <tr><td colSpan={6} className="p-12 text-center animate-pulse text-brand-slate font-bold">Synchronizing...</td></tr>
               ) : filteredProducts.length === 0 ? (
-                <tr><td colSpan={4} className="p-8 text-center text-brand-slate/60">No products found.</td></tr>
+                <tr><td colSpan={6} className="p-12 text-center text-brand-slate/40 font-bold">No products found.</td></tr>
               ) : (
-                filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-brand-pink/30 group">
-                    <td className="px-6 py-4"><span className="font-mono font-bold text-brand-red bg-brand-pink px-2 py-1 rounded">{product.ref_no}</span></td>
-                    <td className="px-6 py-4 font-medium text-brand-maroon">{product.name}</td>
-                    <td className="px-6 py-4 text-brand-slate">{product.category}</td>
-                    <td className="px-6 py-4 text-right">
-                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link 
-                          href={`/admin/products/${product.id}`}
-                          className="p-1.5 text-brand-slate hover:text-brand-red hover:bg-brand-red-subtle rounded-lg transition-all"
-                        >
-                          <Edit2 size={16} />
-                        </Link>
-                        <button className="p-1.5 text-brand-slate hover:text-brand-red hover:bg-brand-red-subtle rounded-lg transition-all">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                filteredProducts.map((product, index) => {
+                  const config = product.pricing_config?.[0]
+                  return (
+                    <tr key={product.id} className="hover:bg-brand-pink/10 group transition-colors">
+                      <td className="px-6 py-4 text-xs font-bold text-brand-slate/40">{index + 1}</td>
+                      <td className="px-6 py-4">
+                        <span className="font-mono font-black text-[10px] text-brand-red bg-brand-pink px-2.5 py-1 rounded-full uppercase tracking-widest">{product.ref_no}</span>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-brand-maroon">{product.name}</td>
+                      <td className="px-6 py-4 text-brand-slate text-xs font-medium uppercase tracking-tighter">
+                        {product.categories?.name || "Uncategorized"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className={`${config?.override_price ? 'text-brand-red' : 'text-brand-slate'} text-xs font-black`}>
+                            {config?.override_price ? `$${config.override_price} (Override)` : `${config?.margin_value || 15}${config?.margin_type === 'percentage' ? '%' : ' Fixed'}`}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            onClick={() => handleOpenEdit(product)}
+                            className="p-2 text-brand-slate hover:text-brand-red hover:bg-brand-red-subtle rounded-xl transition-all"
+                            title="Edit Product & Pricing"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => deleteProduct(product.id)}
+                            className="p-2 text-brand-slate hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            title="Delete Product"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Add Product Modal */}
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        title="Add New Product"
+      {/* Unified Add/Edit Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={isEditing ? "Modify Product & Pricing" : "Add New Product"}
       >
-        <form onSubmit={handleAddProduct} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-brand-maroon uppercase tracking-wider">Ref No</label>
-              <input 
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-brand-maroon uppercase tracking-widest opacity-60">Ref No</label>
+              <input
                 required
-                type="text" 
+                type="text"
                 placeholder="e.g. BE001"
-                className="w-full px-4 py-2.5 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red/50 transition-all text-sm"
-                value={newProduct.ref_no}
-                onChange={(e) => setNewProduct({...newProduct, ref_no: e.target.value.toUpperCase()})}
+                className="w-full px-4 py-3 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red transition-all font-bold"
+                value={formData.ref_no}
+                onChange={(e) => setFormData({ ...formData, ref_no: e.target.value.toUpperCase() })}
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-brand-maroon uppercase tracking-wider">Category</label>
-              <input 
-                type="text" 
-                placeholder="e.g. Beverages"
-                className="w-full px-4 py-2.5 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red/50 transition-all text-sm"
-                value={newProduct.category}
-                onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-              />
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-brand-maroon uppercase tracking-widest opacity-60">Category</label>
+              <select
+                className="w-full px-4 py-3 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red transition-all font-bold"
+                value={formData.category_id}
+                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+              >
+                <option value="">Select Category</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             </div>
           </div>
-          
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-brand-maroon uppercase tracking-wider">Product Name</label>
-            <input 
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-brand-maroon uppercase tracking-widest opacity-60">Product Name</label>
+            <input
               required
-              type="text" 
+              type="text"
               placeholder="Enter product name..."
-              className="w-full px-4 py-2.5 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red/50 transition-all text-sm"
-              value={newProduct.name}
-              onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+              className="w-full px-4 py-3 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red transition-all font-bold"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-brand-maroon uppercase tracking-wider">Description</label>
-            <textarea 
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-brand-maroon uppercase tracking-widest opacity-60">Description</label>
+            <textarea
               placeholder="Optional description..."
-              className="w-full px-4 py-2.5 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red/50 transition-all text-sm min-h-[100px]"
-              value={newProduct.description}
-              onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+              className="w-full px-4 py-3 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red transition-all font-medium text-sm min-h-[80px]"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
+          </div>
+
+          {/* Pricing Config Section */}
+          <div className="pt-4 border-t border-brand-red-subtle/50 space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Settings size={14} className="text-brand-red" />
+              <h3 className="text-sm font-black text-brand-maroon uppercase tracking-widest">Pricing Strategy</h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-brand-slate uppercase tracking-widest opacity-60">Margin Type</label>
+                <select
+                  className="w-full px-4 py-3 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red transition-all font-bold"
+                  value={formData.margin_type}
+                  onChange={(e) => setFormData({ ...formData, margin_type: e.target.value })}
+                >
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="fixed">Fixed Amount ($)</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-brand-slate uppercase tracking-widest opacity-60">Margin Value</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full px-4 py-3 bg-brand-gray border border-brand-red-subtle rounded-xl outline-none focus:border-brand-red transition-all font-black"
+                  value={formData.margin_value}
+                  onChange={(e) => setFormData({ ...formData, margin_value: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between">
+                <label className="text-[10px] font-black text-brand-slate uppercase tracking-widest opacity-60">Manual Price Override</label>
+                {formData.override_price && <button type="button" onClick={() => setFormData({ ...formData, override_price: "" })} className="text-[8px] font-black text-brand-red underline">RESET</button>}
+              </div>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Enter fixed price to ignore calculations"
+                  className="w-full pl-10 pr-4 py-3 bg-brand-pink/20 border border-brand-red/10 rounded-xl outline-none focus:border-brand-red/40 font-black text-brand-red active:bg-white focus:bg-white"
+                  value={formData.override_price}
+                  onChange={(e) => setFormData({ ...formData, override_price: e.target.value })}
+                />
+                <DollarSign size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-red/40" />
+              </div>
+            </div>
           </div>
 
           <div className="pt-4 flex gap-3">
-             <button 
-              type="button"
-              onClick={() => setIsModalOpen(false)}
-              className="flex-1 px-4 py-2.5 border border-brand-red-subtle text-brand-slate font-medium rounded-xl hover:bg-brand-gray transition-colors"
-             >
-               Cancel
-             </button>
-             <button 
+            <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2.5 bg-brand-red text-white font-medium rounded-xl hover:bg-brand-maroon transition-colors shadow-lg shadow-brand-red/20 disabled:opacity-50"
-             >
-               {isSubmitting ? "Adding..." : "Save Product"}
-             </button>
+              className="flex-1 px-4 py-4 bg-brand-red text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl hover:bg-brand-maroon transition-all shadow-xl shadow-brand-red/20 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+              {isEditing ? "Save Changes" : "Create Product"}
+            </button>
           </div>
         </form>
       </Modal>

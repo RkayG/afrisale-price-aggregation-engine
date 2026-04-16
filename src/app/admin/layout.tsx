@@ -1,8 +1,9 @@
-import { createClient } from "@/lib/supabase"
 import Link from "next/link"
-import { LayoutDashboard, Package, Users, Settings, LogOut } from "lucide-react"
+import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
+import { LayoutDashboard, Package, Users, Settings, LogOut, LayoutGrid } from "lucide-react"
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
@@ -10,9 +11,17 @@ export default function AdminLayout({
   const navItems = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { label: "Products", href: "/admin/products", icon: Package },
+    { label: "Categories", href: "/admin/categories", icon: LayoutGrid },
     { label: "Suppliers", href: "/admin/suppliers", icon: Users },
     { label: "Settings", href: "/admin/settings", icon: Settings },
   ]
+
+  async function handleLogout() {
+    "use server"
+    const cookieStore = await cookies()
+    cookieStore.delete("admin_access_token")
+    redirect("/")
+  }
 
   return (
     <div className="flex min-h-screen bg-brand-gray font-sans">
@@ -41,10 +50,15 @@ export default function AdminLayout({
         </nav>
 
         <div className="p-4 border-t border-brand-red-subtle">
-          <button className="flex w-full items-center gap-3 px-3 py-2.5 text-brand-slate hover:bg-brand-red-subtle hover:text-brand-maroon rounded-xl transition-all group">
-            <LogOut size={20} />
-            <span className="font-medium">Sign Out</span>
-          </button>
+          <form action={handleLogout}>
+            <button 
+              type="submit"
+              className="flex w-full items-center gap-3 px-3 py-2.5 text-brand-slate hover:bg-brand-red-subtle hover:text-brand-maroon rounded-xl transition-all group"
+            >
+              <LogOut size={20} />
+              <span className="font-medium">Sign Out</span>
+            </button>
+          </form>
         </div>
       </aside>
 
