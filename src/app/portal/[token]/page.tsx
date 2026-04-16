@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, use } from "react"
 import { createClient } from "@/lib/supabase"
 import { Package, CheckCircle2, Save, Loader2, AlertCircle } from "lucide-react"
 
-export default function SupplierPortal({ params }: { params: { token: string } }) {
+export default function SupplierPortal({ params }: { params: Promise<{ token: string }> }) {
+  const resolvedParams = use(params)
+  const token = resolvedParams.token
   const [supplier, setSupplier] = useState<any>(null)
   const [products, setProducts] = useState<any[]>([])
   const [prices, setPrices] = useState<Record<string, string>>({})
@@ -21,7 +23,7 @@ export default function SupplierPortal({ params }: { params: { token: string } }
     const { data: sData, error: sError } = await supabase
       .from("suppliers")
       .select("id, name")
-      .eq("access_token", params.token)
+      .eq("access_token", token)
       .single()
 
     if (sError || !sData) {
@@ -70,7 +72,7 @@ export default function SupplierPortal({ params }: { params: { token: string } }
     setProducts(pData || [])
     setPrices(initialPrices)
     setLoading(false)
-  }, [params.token])
+  }, [token])
 
   useEffect(() => {
     fetchData()

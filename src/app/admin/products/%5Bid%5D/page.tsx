@@ -1,11 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { createClient } from "@/lib/supabase"
 import { ArrowLeft, Save, TrendingDown, DollarSign, Percent, AlertCircle } from "lucide-react"
 import Link from "next/link"
 
-export default function ProductPricingPage({ params }: { params: { id: string } }) {
+export default function ProductPricingPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params)
+  const id = resolvedParams.id
   const [product, setProduct] = useState<any>(null)
   const [config, setConfig] = useState<any>(null)
   const [supplierPrices, setSupplierPrices] = useState<any[]>([])
@@ -16,7 +18,7 @@ export default function ProductPricingPage({ params }: { params: { id: string } 
 
   useEffect(() => {
     fetchProductDetails()
-  }, [params.id])
+  }, [id])
 
   async function fetchProductDetails() {
     setLoading(true)
@@ -25,14 +27,14 @@ export default function ProductPricingPage({ params }: { params: { id: string } 
     const { data: pData } = await supabase
       .from("products")
       .select("*, pricing_config(*)")
-      .eq("id", params.id)
+      .eq("id", id)
       .single()
     
     // 2. Fetch All Supplier Prices for this product
     const { data: sData } = await supabase
       .from("supplier_prices")
       .select("*, suppliers(name)")
-      .eq("product_id", params.id)
+      .eq("product_id", id)
 
     setProduct(pData)
     setConfig(pData.pricing_config || { margin_type: 'percentage', margin_value: 15.00, override_price: null })
@@ -47,7 +49,7 @@ export default function ProductPricingPage({ params }: { params: { id: string } 
     const { error } = await supabase
       .from("pricing_config")
       .upsert({
-        product_id: params.id,
+        product_id: id,
         ...config,
         updated_at: new Date().toISOString()
       })
