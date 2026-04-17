@@ -177,18 +177,40 @@ export default function PublicPriceList() {
         </div>
       </div>
 
-      {/* Floating Category Widget */}
+      {/* Sticky Flowing Footer Banner */}
+      <style jsx global>{`
+        @keyframes marquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .flowing-marquee {
+          display: flex;
+          white-space: nowrap;
+          animation: marquee 30s linear infinite;
+        }
+      `}</style>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-brand-pink text-primary py-3 z-[60] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] border-t border-white/10 overflow-hidden">
+        <div className="flowing-marquee items-center gap-12 md:gap-24 lg:gap-32  text-xs md:text-xs ">
+          <span className="flex-shrink-0">All prices are negotiable. Contact us at afrisaledistributors.com | Tel: +44 7440 701994</span>
+          <span className="flex-shrink-0">All prices are negotiable. Contact us at afrisaledistributors.com | Tel: +44 7440 701994</span>
+          <span className="flex-shrink-0">All prices are negotiable. Contact us at afrisaledistributors.com | Tel: +44 7440 701994</span>
+          <span className="flex-shrink-0">All prices are negotiable. Contact us at afrisaledistributors.com | Tel: +44 7440 701994</span>
+        </div>
+      </div>
+
+      {/* Floating Category Widget - Moved up to avoid footer overlap */}
       <button
         onClick={() => setIsMenuOpen(true)}
-        className="fixed bottom-8 right-8 w-14 h-14 bg-[#a32e2e] text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all z-40"
+        className="fixed bottom-20 right-8 w-14 h-14 bg-[#a32e2e] text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all z-40"
       >
         <LayoutGrid size={24} />
       </button>
 
-      {/* Scroll to Top */}
+      {/* Scroll to Top - Moved up to avoid footer overlap */}
       <button
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        className="fixed bottom-8 left-8 w-12 h-12 bg-white text-[#a32e2e] border-2 border-[#a32e2e] rounded-full flex items-center justify-center shadow-xl hover:bg-[#fcecec] transition-all z-40 hidden md:flex"
+        className="fixed bottom-20 left-8 w-12 h-12 bg-white text-[#a32e2e] border-2 border-[#a32e2e] rounded-full flex items-center justify-center shadow-xl hover:bg-[#fcecec] transition-all z-40 hidden md:flex"
       >
         <ArrowUp size={20} />
       </button>

@@ -34,3 +34,14 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex !important;
+  width: max-content !important;
+  animation: marquee 40s linear infinite !important;
+}
