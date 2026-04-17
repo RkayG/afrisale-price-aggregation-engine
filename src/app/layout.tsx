@@ -8,8 +8,11 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Afrisale Pricing Engine",
-  description: "Real-time pricing aggregation and control system",
+  title: "AFRISALE DISTRIBUTORS",
+  description: "Wholesale partner for authentic African & Asian products.",
+  icons: {
+    icon: "/baner-1.png",
+  },
 };
 
 export default function RootLayout({

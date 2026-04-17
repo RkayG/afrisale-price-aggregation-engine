@@ -2,13 +2,17 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase"
-import { TrendingDown, Package, Users, Activity, ExternalLink, RefreshCw } from "lucide-react"
+import { Package, Users, Activity, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react"
 
 export default function AdminDashboard() {
   const [data, setData] = useState<any[]>([])
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [stats, setStats] = useState({ products: 0, suppliers: 0, updates: 0 })
   const [loading, setLoading] = useState(true)
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   const supabase = createClient()
 
@@ -18,7 +22,7 @@ export default function AdminDashboard() {
 
   async function fetchMatrix() {
     setLoading(true)
-    
+
     // 1. Fetch Suppliers
     const { data: sData } = await supabase.from("suppliers").select("id, name")
     const suppliersList = sData || []
@@ -38,12 +42,11 @@ export default function AdminDashboard() {
       .order("ref_no")
 
     if (pError) {
-      console.error("Supabase Matrix Error:", pError)
+      return;
     }
 
-    console.log("Matrix Data Raw:", pData) // CHECK THIS IN BROWSER CONSOLE (F12)
     setData(pData || [])
-    
+
     // Stats calculation
     setStats({
       products: pData?.length || 0,
@@ -53,6 +56,10 @@ export default function AdminDashboard() {
 
     setLoading(false)
   }
+
+  // Pagination Logic
+  const totalPages = Math.ceil(data.length / itemsPerPage)
+  const paginatedData = data.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   return (
     <div className="space-y-8">
@@ -76,21 +83,24 @@ export default function AdminDashboard() {
       </div>
 
       {/* The Pricing Matrix */}
-      <div className="bg-white rounded-3xl border border-brand-red-subtle shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[2rem] border border-brand-red-subtle shadow-sm overflow-hidden flex flex-col">
         <div className="p-6 border-b border-brand-red-subtle flex justify-between items-center bg-brand-gray/20">
           <div>
-            <h2 className="text-lg font-bold text-brand-maroon">Pricing Comparison Matrix</h2>
+            <h2 className="text-lg font-bold text-brand-maroon">Pricing Comparison</h2>
             <p className="text-xs text-brand-slate/60">Live aggregation of all supplier submissions</p>
           </div>
-          <button 
-            onClick={fetchMatrix}
+          <button
+            onClick={() => {
+              setCurrentPage(1)
+              fetchMatrix()
+            }}
             className="p-2 text-brand-slate hover:bg-white rounded-xl transition-all hover:shadow-sm"
           >
             <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto flex-1">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-brand-gray/50 border-b border-brand-red-subtle">
@@ -109,10 +119,10 @@ export default function AdminDashboard() {
               ) : data.length === 0 ? (
                 <tr><td colSpan={suppliers.length + 4} className="p-12 text-center text-brand-slate/60">No data available.</td></tr>
               ) : (
-                data.map((row, index) => {
-                  // Safely extract from joined data (handles both Array and Object responses)
-                  const finalEntry = Array.isArray(row.final_prices) 
-                    ? row.final_prices[0] 
+                paginatedData.map((row, index) => {
+                  const actualIndex = (currentPage - 1) * itemsPerPage + index
+                  const finalEntry = Array.isArray(row.final_prices)
+                    ? row.final_prices[0]
                     : row.final_prices
 
                   const lowest = finalEntry ? finalEntry.lowest_price : null
@@ -121,7 +131,7 @@ export default function AdminDashboard() {
                   return (
                     <tr key={row.id} className="hover:bg-brand-gray/30 transition-colors group">
                       <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-brand-gray transition-colors border-r border-brand-red-subtle/30 text-center text-[10px] font-bold text-brand-slate/40">
-                        {index + 1}
+                        {actualIndex + 1}
                       </td>
                       <td className="px-6 py-4 sticky left-16 bg-white group-hover:bg-brand-gray transition-colors border-r border-brand-red-subtle/30">
                         <div className="flex items-center gap-3">
@@ -129,11 +139,11 @@ export default function AdminDashboard() {
                           <span className="text-sm font-bold text-brand-maroon truncate max-w-[140px]">{row.name}</span>
                         </div>
                       </td>
-                      
+
                       {suppliers.map(s => {
                         const sPrice = row.supplier_prices?.find((p: any) => p.supplier_id === s.id)
                         const isLowest = sPrice && lowest && Number(sPrice.price) === Number(lowest)
-                        
+
                         return (
                           <td key={s.id} className={`px-6 py-4 text-center text-sm font-medium ${isLowest ? "text-brand-red font-bold" : "text-brand-slate/50"}`}>
                             {sPrice ? (
@@ -164,6 +174,59 @@ export default function AdminDashboard() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {data.length > itemsPerPage && (
+          <div className="p-4 bg-brand-gray/30 border-t border-brand-red-subtle flex items-center justify-between">
+            <p className="text-xs font-bold text-brand-slate/50 uppercase tracking-widest">
+              Showing <span className="text-brand-maroon">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-brand-maroon">{Math.min(currentPage * itemsPerPage, data.length)}</span> of <span className="text-brand-maroon">{data.length}</span> products
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                className="p-2 bg-white border border-brand-red-subtle rounded-xl text-brand-slate hover:text-brand-red hover:bg-brand-pink disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-brand-slate transition-all shadow-sm"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }).map((_, i) => {
+                  const pageNum = i + 1
+                  const isCurrent = currentPage === pageNum
+                  
+                  // Show limited pages if there are too many
+                  if (totalPages > 5 && (pageNum > 1 && pageNum < totalPages && Math.abs(pageNum - currentPage) > 1)) {
+                    if (pageNum === 2 || pageNum === totalPages - 1) return <span key={pageNum} className="px-1">...</span>
+                    return null
+                  }
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${
+                        isCurrent 
+                          ? "bg-brand-red text-white shadow-md shadow-brand-red/20" 
+                          : "bg-white text-brand-slate hover:bg-brand-red-subtle border border-brand-red-subtle"
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                className="p-2 bg-white border border-brand-red-subtle rounded-xl text-brand-slate hover:text-brand-red hover:bg-brand-pink disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-brand-slate transition-all shadow-sm"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

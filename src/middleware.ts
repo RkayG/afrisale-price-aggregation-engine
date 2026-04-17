@@ -10,9 +10,11 @@ export function middleware(request: NextRequest) {
 
     // If token is missing or doesn't match the secret, return 404
     if (!token || token !== process.env.ADMIN_SECRET_TOKEN) {
-      // We return a 404 instead of a redirect to 
-      // make the admin panel completely undiscoverable.
-      return new NextResponse(null, { status: 404 })
+      // Rewrite to /404 to show our custom not-found page while 
+      // keeping the URL intact and hiding the dashboard.
+      const url = request.nextUrl.clone()
+      url.pathname = '/404'
+      return NextResponse.rewrite(url)
     }
   }
 

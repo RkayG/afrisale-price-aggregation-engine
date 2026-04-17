@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase"
-import { Plus, Search, Filter, Edit2, Trash2, Save, Loader2, Percent, DollarSign, Settings } from "lucide-react"
+import { Plus, Search, Filter, Edit2, Trash2, Save, Loader2, Percent, DollarSign, Settings, ChevronLeft, ChevronRight } from "lucide-react"
 import { Modal } from "@/components/ui/Modal"
 
 interface Product {
@@ -22,6 +22,11 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCategoryId, setSelectedCategoryId] = useState("")
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -150,10 +155,21 @@ export default function ProductsPage() {
     fetchData()
   }
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.ref_no.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.ref_no.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesCategory = selectedCategoryId === "" || p.category_id === selectedCategoryId
+    return matchesSearch && matchesCategory
+  })
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
+  const paginatedProducts = filteredProducts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+  // Reset to page 1 when searching or filtering
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedCategoryId])
 
   return (
     <div className="space-y-6">
@@ -178,15 +194,26 @@ export default function ProductsPage() {
             <Plus size={18} />
             Add Product
           </button>
-          <button className="p-2.5 text-brand-slate hover:bg-brand-pink rounded-xl transition-colors">
-            <Filter size={18} />
-          </button>
+
+          <div className="relative flex-1 sm:flex-none">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-slate/50 pointer-events-none" size={16} />
+            <select
+              value={selectedCategoryId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
+              className="appearance-none w-full pl-10 pr-8 py-2.5 bg-brand-gray border border-transparent focus:border-brand-red/30 focus:bg-white rounded-xl outline-none transition-all text-xs font-bold text-brand-slate cursor-pointer"
+            >
+              <option value="">All Categories</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Products Table */}
-      <div className="bg-white rounded-[2rem] border border-brand-red-subtle shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-[2rem] border border-brand-red-subtle shadow-sm overflow-hidden flex flex-col">
+        <div className="overflow-x-auto flex-1">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-brand-gray/50 border-b border-brand-red-subtle ">
@@ -204,13 +231,14 @@ export default function ProductsPage() {
               ) : filteredProducts.length === 0 ? (
                 <tr><td colSpan={6} className="p-12 text-center text-brand-slate/40 font-bold">No products found.</td></tr>
               ) : (
-                filteredProducts.map((product, index) => {
+                paginatedProducts.map((product, index) => {
+                  const actualIndex = (currentPage - 1) * itemsPerPage + index
                   const config = product.pricing_config?.[0]
                   return (
                     <tr key={product.id} className="hover:bg-brand-pink/10 group transition-colors">
-                      <td className="px-6 py-4 text-xs font-bold text-brand-slate/40">{index + 1}</td>
+                      <td className="px-6 py-4 text-xs font-bold text-brand-slate/40">{actualIndex + 1}</td>
                       <td className="px-6 py-4">
-                        <span className="font-mono font-black text-[10px] text-brand-red bg-brand-pink px-2.5 py-1 rounded-full uppercase tracking-widest">{product.ref_no}</span>
+                        <span className="font-mono font-black text-xs text-brand-red bg-brand-pink px-2.5 py-1 rounded-full uppercase tracking-widest">{product.ref_no}</span>
                       </td>
                       <td className="px-6 py-4 font-bold text-brand-maroon">{product.name}</td>
                       <td className="px-6 py-4 text-brand-slate text-xs font-medium uppercase tracking-tighter">
@@ -248,6 +276,57 @@ export default function ProductsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {filteredProducts.length > itemsPerPage && (
+          <div className="p-4 bg-brand-gray/30 border-t border-brand-red-subtle flex items-center justify-between">
+            <p className="text-xs font-bold text-brand-slate/50 uppercase tracking-widest">
+              Showing <span className="text-brand-maroon">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-brand-maroon">{Math.min(currentPage * itemsPerPage, filteredProducts.length)}</span> of <span className="text-brand-maroon">{filteredProducts.length}</span> products
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                className="p-2 bg-white border border-brand-red-subtle rounded-xl text-brand-slate hover:text-brand-red hover:bg-brand-pink disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-brand-slate transition-all shadow-sm"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }).map((_, i) => {
+                  const pageNum = i + 1
+                  const isCurrent = currentPage === pageNum
+
+                  if (totalPages > 5 && (pageNum > 1 && pageNum < totalPages && Math.abs(pageNum - currentPage) > 1)) {
+                    if (pageNum === 2 || pageNum === totalPages - 1) return <span key={pageNum} className="px-1">...</span>
+                    return null
+                  }
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${isCurrent
+                        ? "bg-brand-red text-white shadow-md shadow-brand-red/20"
+                        : "bg-white text-brand-slate hover:bg-brand-red-subtle border border-brand-red-subtle"
+                        }`}
+                    >
+                      {pageNum}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                className="p-2 bg-white border border-brand-red-subtle rounded-xl text-brand-slate hover:text-brand-red hover:bg-brand-pink disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-brand-slate transition-all shadow-sm"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Unified Add/Edit Modal */}

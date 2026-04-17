@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, use } from "react"
 import { createClient } from "@/lib/supabase"
-import { Package, CheckCircle2, Save, Loader2, AlertCircle } from "lucide-react"
+import { Package, CheckCircle2, Save, Loader2, AlertCircle, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react"
 
 export default function SupplierPortal({ params }: { params: Promise<{ token: string }> }) {
   const resolvedParams = use(params)
@@ -14,11 +14,20 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Search & Filter State
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCategoryId, setSelectedCategoryId] = useState("")
+  const [categories, setCategories] = useState<any[]>([])
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
   const supabase = createClient()
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    
+
     // 1. Verify Supplier Token
     const { data: sData, error: sError } = await supabase
       .from("suppliers")
@@ -33,7 +42,10 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
     }
     setSupplier(sData)
 
-    // 2. Fetch Products and existing prices for this supplier
+    // 2. Fetch Products and Categories
+    const { data: cData } = await supabase.from("categories").select("*").order("name")
+    setCategories(cData || [])
+
     const { data: pData } = await supabase
       .from("products")
       .select(`
@@ -41,32 +53,33 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
         ref_no, 
         name, 
         description,
+        category_id,
         supplier_prices(price)
       `)
       .order("ref_no")
-    
+
     // Explicitly filter for this supplier's prices manually if needed, 
     // but better to do it in the select with a filter if Supabase supports it well on join
     const formattedData = pData?.map(p => {
-       // Filter supplier_prices for the current supplier
-       const sp = (p as any).supplier_prices?.find((sp: any) => true) // In our schema we'll only fetch the relevant ones if we add a where to the select
-       return { ...p, price: sp?.price }
+      // Filter supplier_prices for the current supplier
+      const sp = (p as any).supplier_prices?.find((sp: any) => true) // In our schema we'll only fetch the relevant ones if we add a where to the select
+      return { ...p, price: sp?.price }
     }) || []
 
     const initialPrices: Record<string, string> = {}
     pData?.forEach(p => {
-       // We need to fetch specific prices for this supplier. 
-       // Updating the query logic below
+      // We need to fetch specific prices for this supplier. 
+      // Updating the query logic below
     })
 
     // Re-fetching specifically for clarity
     const { data: priceData } = await supabase
-        .from("supplier_prices")
-        .select("product_id, price")
-        .eq("supplier_id", sData.id)
-    
+      .from("supplier_prices")
+      .select("product_id, price")
+      .eq("supplier_id", sData.id)
+
     priceData?.forEach(row => {
-        initialPrices[row.product_id] = row.price.toString()
+      initialPrices[row.product_id] = row.price.toString()
     })
 
     setProducts(pData || [])
@@ -78,13 +91,18 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
     fetchData()
   }, [fetchData])
 
+  // Reset pagination on filter
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedCategoryId])
+
   async function updatePrice(productId: string, price: string) {
     if (!supplier) return
     const numPrice = parseFloat(price)
     if (isNaN(numPrice)) return
 
     setSaving(productId)
-    
+
     const { error } = await supabase
       .from("supplier_prices")
       .upsert({
@@ -98,8 +116,8 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
       setPrices(prev => ({ ...prev, [productId]: price }))
       setTimeout(() => setSaving(null), 1000)
     } else {
-        setSaving(null)
-        alert("Error saving price. Please try again.")
+      setSaving(null)
+      alert("Error saving price. Please try again.")
     }
   }
 
@@ -135,67 +153,165 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
           <div className="absolute top-0 right-0 w-32 h-32 bg-brand-red opacity-10 rounded-full -translate-y-1/2 translate-x-1/2" />
           <div className="flex items-center gap-3 mb-2 opacity-70">
             <Package size={18} />
-            <span className="text-xs font-bold uppercase tracking-widest">Supplier Portal</span>
+            <span className="text-xs font-bold uppercase tracking-widest">Afrisale Supplier Portal</span>
           </div>
           <h1 className="text-3xl font-black mb-1">Welcome, {supplier?.name}</h1>
-          <p className="text-brand-red-subtle/80 text-sm">Please update your current product pricing below.</p>
+          <p className="text-brand-red-subtle/80 text-sm mb-6">Please update your current product pricing below.</p>
+
+          {/* Progress Bar */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+              <span>Submission Progress</span>
+              <span>{Math.round((Object.keys(prices).length / products.length) * 100) || 0}% Complete</span>
+            </div>
+            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-brand-red transition-all duration-500 ease-out"
+                style={{ width: `${(Object.keys(prices).length / products.length) * 100 || 0}%` }}
+              />
+            </div>
+          </div>
         </div>
       </header>
 
+      {/* Action Bar */}
+      <div className="max-w-3xl mx-auto mb-6 flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-slate/30" size={18} />
+          <input
+            type="text"
+            placeholder="Search by ref or name..."
+            className="w-full pl-12 pr-4 py-3 bg-white border border-brand-red-subtle rounded-2xl outline-none focus:border-brand-red/30 transition-all text-sm shadow-sm"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="relative w-full sm:w-48">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-slate/30 pointer-events-none" size={16} />
+          <select
+            value={selectedCategoryId}
+            onChange={(e) => setSelectedCategoryId(e.target.value)}
+            className="appearance-none w-full pl-10 pr-8 py-3 bg-white border border-brand-red-subtle rounded-2xl outline-none focus:border-brand-red/30 transition-all text-xs font-bold text-brand-slate cursor-pointer shadow-sm"
+          >
+            <option value="">All Categories</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* Product List */}
       <main className="max-w-3xl mx-auto space-y-4">
-        {products.map((product) => (
-          <div 
-            key={product.id} 
-            className="bg-white p-6 rounded-3xl border border-brand-red-subtle shadow-sm hover:shadow-md transition-shadow group"
-          >
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[10px] font-bold text-brand-red bg-brand-pink px-2 py-0.5 rounded uppercase">{product.ref_no}</span>
-                  <h3 className="font-bold text-brand-maroon">{product.name}</h3>
-                </div>
-                <p className="text-xs text-brand-slate/60 line-clamp-2">{product.description}</p>
-              </div>
+        {(() => {
+          const filtered = products.filter(p => {
+            const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              p.ref_no.toLowerCase().includes(searchTerm.toLowerCase())
+            const matchesCategory = selectedCategoryId === "" || p.category_id === selectedCategoryId
+            return matchesSearch && matchesCategory
+          })
 
-              <div className="w-full sm:w-48 relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-slate/40 text-sm font-bold">$</div>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  placeholder="0.00"
-                  className="w-full pl-10 pr-12 py-3 bg-brand-gray border border-transparent focus:border-brand-red/30 focus:bg-white rounded-2xl outline-none transition-all text-sm font-bold text-brand-maroon"
-                  value={prices[product.id] || ""}
-                  onChange={(e) => setPrices({ ...prices, [product.id]: e.target.value })}
-                  onBlur={(e) => updatePrice(product.id, e.target.value)}
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                  {saving === product.id ? (
-                    <Loader2 className="w-5 h-5 text-brand-red animate-spin" />
-                  ) : prices[product.id] ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-500 animate-in zoom-in" />
-                  ) : (
-                    <Save className="w-5 h-5 text-brand-slate/20" />
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
+          const totalPages = Math.ceil(filtered.length / itemsPerPage)
+          const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
-        {products.length === 0 && (
-          <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-brand-red-subtle">
-            <p className="text-brand-slate/60 font-medium">No products assigned yet.</p>
-          </div>
-        )}
+          if (filtered.length === 0) {
+            return (
+              <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-brand-red-subtle">
+                <p className="text-brand-slate/60 font-medium">No matches found for your criteria.</p>
+              </div>
+            )
+          }
+
+          return (
+            <>
+              {paginated.map((product) => (
+                <div
+                  key={product.id}
+                  className="bg-white p-8 rounded-3xl border border-brand-red-subtle shadow-sm hover:shadow-md transition-all group"
+                >
+                  <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-black text-brand-red bg-brand-pink px-2.5 py-1 rounded-lg uppercase tracking-widest border border-brand-red/5">
+                          {product.ref_no}
+                        </span>
+                        {product.category_id && categories.find(c => c.id === product.category_id) && (
+                          <span className="text-[10px] font-bold text-brand-slate/60 bg-brand-gray px-2.5 py-1 rounded-lg uppercase tracking-tight">
+                            {categories.find(c => c.id === product.category_id)?.name}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="font-black text-xl text-brand-maroon tracking-tight leading-tight">
+                        {product.name}
+                      </h3>
+
+                      <p className="text-sm text-brand-slate/70 leading-relaxed max-w-xl">
+                        {product.description || "No description provided."}
+                      </p>
+                    </div>
+
+                    <div className="w-full sm:w-56 shrink-0">
+                      <label className="block text-[10px] font-black text-brand-slate/40 uppercase tracking-[0.2em] mb-2 px-1">
+                        Supply Price (USD)
+                      </label>
+                      <div className="relative group/input">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-maroon font-black text-lg">$</div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          className="w-full pl-10 pr-12 py-4 bg-brand-gray border-2 border-transparent focus:border-brand-red/20 focus:bg-white rounded-[1.25rem] outline-none transition-all text-lg font-black text-brand-maroon placeholder:text-brand-slate/20"
+                          value={prices[product.id] || ""}
+                          onChange={(e) => setPrices({ ...prices, [product.id]: e.target.value })}
+                          onBlur={(e) => updatePrice(product.id, e.target.value)}
+                        />
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                          {saving === product.id ? (
+                            <Loader2 className="w-6 h-6 text-brand-red animate-spin" />
+                          ) : prices[product.id] ? (
+                            <CheckCircle2 className="w-6 h-6 text-[#81c408] animate-in zoom-in" />
+                          ) : (
+                            <Save className="w-6 h-6 text-brand-slate/10" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-4">
+                  <p className="text-[10px] font-black text-brand-slate/40 uppercase tracking-widest">
+                    Page {currentPage} of {totalPages}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(prev => prev - 1)}
+                      className="p-2 bg-white border border-brand-red-subtle rounded-xl text-brand-slate disabled:opacity-30 transition-all hover:bg-brand-pink"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <button
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(prev => prev + 1)}
+                      className="p-2 bg-white border border-brand-red-subtle rounded-xl text-brand-slate disabled:opacity-30 transition-all hover:bg-brand-pink"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )
+        })()}
       </main>
 
-      <footer className="max-w-3xl mx-auto mt-12 text-center">
-         <p className="text-xs text-brand-slate/40 flex items-center justify-center gap-2">
-           <CheckCircle2 size={14} className="text-brand-red" />
-           Prices are automatically synchronized with the Afrisale master list.
-         </p>
-      </footer>
+
     </div>
   )
 }
