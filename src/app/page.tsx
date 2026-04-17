@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase"
-import { AlertTriangle, Search } from "lucide-react"
+import { AlertTriangle, Search, LayoutGrid, X, ArrowUp } from "lucide-react"
 
 export default function PublicPriceList() {
   const [prices, setPrices] = useState<any[]>([])
@@ -67,7 +67,8 @@ export default function PublicPriceList() {
 
   const filteredPrices = prices.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.ref_no.toLowerCase().includes(searchTerm.toLowerCase())
+    p.ref_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.category || "").toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   // Group by category
@@ -78,8 +79,23 @@ export default function PublicPriceList() {
     return acc
   }, {})
 
+  const categories = Object.keys(groupedPrices).sort()
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id)
+    if (element) {
+      const offset = 100
+      const elementPosition = element.getBoundingClientRect().top + window.scrollY
+      window.scrollTo({
+        top: elementPosition - offset,
+        behavior: 'smooth'
+      })
+    }
+    setIsMenuOpen(false)
+  }
+
   return (
-    <div className="min-h-screen bg-white font-sans text-brand-maroon pb-20">
+    <div className="min-h-screen bg-white font-sans text-brand-maroon pb-20 relative">
       {/* Top Banner */}
       <div className="bg-[#a32e2e] text-white text-center py-4 px-6 shadow-md">
         <h1 className="text-3xl font-black tracking-tight uppercase">AFRISALE DISTRIBUTORS</h1>
@@ -117,7 +133,7 @@ export default function PublicPriceList() {
           <div className="py-20 text-center text-gray-400">No products found for "{searchTerm}"</div>
         ) : (
           Object.keys(groupedPrices).sort().map((category) => (
-            <div key={category} className="mb-10 overflow-hidden border border-[#a32e2e]">
+            <div key={category} id={category} className="mb-10 overflow-hidden border border-[#a32e2e]">
               {/* Category Header */}
               <div className="bg-[#a32e2e] text-white py-2 px-6 text-center font-black text-lg uppercase tracking-[0.1em]">
                 {category}
@@ -160,6 +176,52 @@ export default function PublicPriceList() {
           <p>All prices are negotiable. Contact us at afrisaledistributors.com | Tel: +44 7440 701994</p>
         </div>
       </div>
+
+      {/* Floating Category Widget */}
+      <button
+        onClick={() => setIsMenuOpen(true)}
+        className="fixed bottom-8 right-8 w-14 h-14 bg-[#a32e2e] text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all z-40"
+      >
+        <LayoutGrid size={24} />
+      </button>
+
+      {/* Scroll to Top */}
+      <button
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        className="fixed bottom-8 left-8 w-12 h-12 bg-white text-[#a32e2e] border-2 border-[#a32e2e] rounded-full flex items-center justify-center shadow-xl hover:bg-[#fcecec] transition-all z-40 hidden md:flex"
+      >
+        <ArrowUp size={20} />
+      </button>
+
+      {/* Category Overlay Menu */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-[100] animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-brand-maroon/90 backdrop-blur-md" onClick={() => setIsMenuOpen(false)} />
+          <div className="absolute right-0 inset-y-0 w-full max-w-sm bg-white shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-[#a32e2e] text-white sticky top-0">
+              <h2 className="font-black uppercase tracking-widest text-sm">Jump to Category</h2>
+              <button onClick={() => setIsMenuOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors focus:outline-none">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => scrollToSection(cat)}
+                  className="w-full text-left px-6 py-4 rounded-2xl hover:bg-[#fcecec] text-brand-maroon group transition-all outline-none"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-black uppercase tracking-wide text-xs">{cat}</span>
+                    <span className="text-xs font-bold text-gray-400 group-hover:text-brand-red">{groupedPrices[cat].length} Items</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   )
 }
