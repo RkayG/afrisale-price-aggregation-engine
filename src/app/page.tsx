@@ -36,7 +36,7 @@ export default function PublicPriceList() {
         name,
         category,
         description,
-        final_prices (
+        final_prices:final_prices!product_id (
           final_price,
           updated_at
         )
@@ -152,7 +152,8 @@ export default function PublicPriceList() {
                   </thead>
                   <tbody>
                     {groupedPrices[category].map((item: any, idx: number) => {
-                      const finalPrice = item.final_prices?.[0]?.final_price
+                      const finalEntry = Array.isArray(item.final_prices) ? item.final_prices[0] : item.final_prices
+                      const finalPrice = finalEntry?.final_price
                       return (
                         <tr key={item.id} className={idx % 2 === 0 ? "bg-white" : "bg-[#fcecec]"}>
                           <td className="px-4 py-3 text-center text-xs font-bold border-r border-gray-200">{item.ref_no}</td>
@@ -171,10 +172,7 @@ export default function PublicPriceList() {
           ))
         )}
 
-        {/* Footer */}
-        <div className="mt-12 text-center text-[10px] md:text-sm font-bold text-[#c23b3b] space-y-1">
-          <p>All prices are negotiable. Contact us at afrisaledistributors.com | Tel: +44 7440 701994</p>
-        </div>
+
       </div>
 
       {/* Sticky Flowing Footer Banner */}

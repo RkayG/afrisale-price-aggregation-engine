@@ -53,6 +53,17 @@ export default function SuppliersPage() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
+  async function handleDeleteSupplier(id: string) {
+    if (!window.confirm("Are you sure you want to delete this supplier? This action cannot be undone.")) return
+
+    const { error } = await supabase.from("suppliers").delete().eq("id", id)
+    if (!error) {
+      fetchSuppliers()
+    } else {
+      alert("Error deleting supplier. They may have active price lists.")
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -82,7 +93,10 @@ export default function SuppliersPage() {
                 <div className="w-12 h-12 rounded-2xl bg-brand-pink flex items-center justify-center text-brand-red font-bold text-lg">
                   {supplier.name.charAt(0)}
                 </div>
-                <button className="p-2 text-brand-slate hover:bg-brand-pink rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={() => handleDeleteSupplier(supplier.id)}
+                  className="p-2 text-brand-slate hover:bg-brand-pink hover:text-red-500 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
+                >
                   <Trash2 size={18} />
                 </button>
               </div>
