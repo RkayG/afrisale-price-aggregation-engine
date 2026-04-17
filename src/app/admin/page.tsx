@@ -158,13 +158,13 @@ export default function AdminDashboard() {
 
                       <td className="px-6 py-4 text-center bg-brand-pink/10">
                         <span className="text-sm font-black text-brand-red">
-                          {lowest !== null && lowest !== undefined ? `$£{Number(lowest).toFixed(2)}` : "—"}
+                          {lowest !== null && lowest !== undefined ? `£${Number(lowest).toFixed(2)}` : "—"}
                         </span>
                       </td>
 
                       <td className="px-6 py-4 text-center bg-brand-red-subtle/10">
                         <span className="text-base font-black text-brand-maroon">
-                          {final !== null && final !== undefined ? `$£{Number(final).toFixed(2)}` : "—"}
+                          {final !== null && final !== undefined ? `£${Number(final).toFixed(2)}` : "—"}
                         </span>
                       </td>
                     </tr>
