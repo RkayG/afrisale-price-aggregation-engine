@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback, use } from "react"
-import { createClient } from "@/lib/supabase"
 import { Package, CheckCircle2, Save, Loader2, AlertCircle, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react"
+import { verifySupplier, getPortalData, upsertSupplierPrice } from "../actions"
 
 export default function SupplierPortal({ params }: { params: Promise<{ token: string }> }) {
   const resolvedParams = use(params)
@@ -23,68 +23,24 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  const supabase = createClient()
-
   const fetchData = useCallback(async () => {
     setLoading(true)
+    try {
+      // 1. Verify Supplier Token on the server
+      const sData = await verifySupplier(token)
+      setSupplier(sData)
 
-    // 1. Verify Supplier Token
-    const { data: sData, error: sError } = await supabase
-      .from("suppliers")
-      .select("id, name")
-      .eq("access_token", token)
-      .single()
-
-    if (sError || !sData) {
-      setError("Invalid or expired access link.")
+      // 2. Fetch Products, Categories and Prices on the server
+      const { categories, products, initialPrices } = await getPortalData(sData.id)
+      
+      setCategories(categories)
+      setProducts(products)
+      setPrices(initialPrices)
+    } catch (err: any) {
+      setError(err.message || "An unexpected error occurred.")
+    } finally {
       setLoading(false)
-      return
     }
-    setSupplier(sData)
-
-    // 2. Fetch Products and Categories
-    const { data: cData } = await supabase.from("categories").select("*").order("name")
-    setCategories(cData || [])
-
-    const { data: pData } = await supabase
-      .from("products")
-      .select(`
-        id, 
-        ref_no, 
-        name, 
-        description,
-        category_id,
-        supplier_prices(price)
-      `)
-      .order("ref_no")
-
-    // Explicitly filter for this supplier's prices manually if needed, 
-    // but better to do it in the select with a filter if Supabase supports it well on join
-    const formattedData = pData?.map(p => {
-      // Filter supplier_prices for the current supplier
-      const sp = (p as any).supplier_prices?.find((sp: any) => true) // In our schema we'll only fetch the relevant ones if we add a where to the select
-      return { ...p, price: sp?.price }
-    }) || []
-
-    const initialPrices: Record<string, string> = {}
-    pData?.forEach(p => {
-      // We need to fetch specific prices for this supplier. 
-      // Updating the query logic below
-    })
-
-    // Re-fetching specifically for clarity
-    const { data: priceData } = await supabase
-      .from("supplier_prices")
-      .select("product_id, price")
-      .eq("supplier_id", sData.id)
-
-    priceData?.forEach(row => {
-      initialPrices[row.product_id] = row.price.toString()
-    })
-
-    setProducts(pData || [])
-    setPrices(initialPrices)
-    setLoading(false)
   }, [token])
 
   useEffect(() => {
@@ -103,19 +59,11 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
 
     setSaving(productId)
 
-    const { error } = await supabase
-      .from("supplier_prices")
-      .upsert({
-        supplier_id: supplier.id,
-        product_id: productId,
-        price: numPrice,
-        updated_at: new Date().toISOString()
-      }, { onConflict: "supplier_id,product_id" })
-
-    if (!error) {
+    try {
+      await upsertSupplierPrice(supplier.id, productId, numPrice)
       setPrices(prev => ({ ...prev, [productId]: price }))
       setTimeout(() => setSaving(null), 1000)
-    } else {
+    } catch (error) {
       setSaving(null)
       alert("Error saving price. Please try again.")
     }

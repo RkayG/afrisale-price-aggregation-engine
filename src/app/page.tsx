@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase"
 import { AlertTriangle, Search, LayoutGrid, X, ArrowUp } from "lucide-react"
+import { getPublicPrices } from "./actions"
 
 export default function PublicPriceList() {
   const [prices, setPrices] = useState<any[]>([])
@@ -28,26 +29,14 @@ export default function PublicPriceList() {
   }, [])
 
   async function fetchPrices() {
-    const { data } = await supabase
-      .from("products")
-      .select(`
-        id,
-        ref_no,
-        name,
-        category,
-        description,
-        final_prices:final_prices!product_id (
-          final_price,
-          updated_at
-        )
-      `)
-      .order("name", { ascending: true })
-
-    if (data) {
+    try {
+      const data = await getPublicPrices()
       setPrices(data)
+      
       // Find the most recent update time
       const latest = data.reduce((acc: any, curr: any) => {
-        const date = curr.final_prices?.[0]?.updated_at
+        const entry = Array.isArray(curr.final_prices) ? curr.final_prices[0] : curr.final_prices
+        const date = entry?.updated_at
         if (!date) return acc
         return !acc || new Date(date) > new Date(acc) ? date : acc
       }, null)
@@ -61,8 +50,11 @@ export default function PublicPriceList() {
           minute: '2-digit'
         }))
       }
+    } catch (err) {
+      console.error("Price fetch error:", err)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const filteredPrices = prices.filter(p =>

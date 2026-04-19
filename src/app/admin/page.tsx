@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase"
 import { Package, Users, Activity, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react"
+import { getAdminMatrix } from "./actions"
 
 export default function AdminDashboard() {
   const [data, setData] = useState<any[]>([])
@@ -14,47 +14,26 @@ export default function AdminDashboard() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
-  const supabase = createClient()
-
   useEffect(() => {
     fetchMatrix()
   }, [])
 
   async function fetchMatrix() {
     setLoading(true)
-
-    // 1. Fetch Suppliers
-    const { data: sData } = await supabase.from("suppliers").select("id, name")
-    const suppliersList = sData || []
-    setSuppliers(suppliersList)
-
-    // 2. Fetch Matrix Data (Combine products, their supplier prices, and the calculated final price)
-    const { data: pData, error: pError } = await supabase
-      .from("products")
-      .select(`
-        id, 
-        ref_no, 
-        name,
-        final_prices:final_prices!product_id(lowest_price, final_price),
-        pricing_config:pricing_config!product_id(margin_type, margin_value, override_price),
-        supplier_prices:supplier_prices!product_id(supplier_id, price)
-      `)
-      .order("ref_no")
-
-    if (pError) {
+    try {
+      const { products, suppliers } = await getAdminMatrix()
+      setSuppliers(suppliers)
+      setData(products)
+      setStats({
+        products: products.length,
+        suppliers: suppliers.length,
+        updates: 0
+      })
+    } catch (error) {
       return;
+    } finally {
+      setLoading(false)
     }
-
-    setData(pData || [])
-
-    // Stats calculation
-    setStats({
-      products: pData?.length || 0,
-      suppliers: suppliersList.length || 0,
-      updates: 0 // Could fetch from activity logs if implemented
-    })
-
-    setLoading(false)
   }
 
   // Pagination Logic
@@ -189,12 +168,12 @@ export default function AdminDashboard() {
               >
                 <ChevronLeft size={16} />
               </button>
-              
+
               <div className="flex items-center gap-1">
                 {Array.from({ length: totalPages }).map((_, i) => {
                   const pageNum = i + 1
                   const isCurrent = currentPage === pageNum
-                  
+
                   // Show limited pages if there are too many
                   if (totalPages > 5 && (pageNum > 1 && pageNum < totalPages && Math.abs(pageNum - currentPage) > 1)) {
                     if (pageNum === 2 || pageNum === totalPages - 1) return <span key={pageNum} className="px-1">...</span>
@@ -205,11 +184,10 @@ export default function AdminDashboard() {
                     <button
                       key={pageNum}
                       onClick={() => setCurrentPage(pageNum)}
-                      className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${
-                        isCurrent 
-                          ? "bg-brand-red text-white shadow-md shadow-brand-red/20" 
+                      className={`w-8 h-8 rounded-lg text-xs font-black transition-all ${isCurrent
+                          ? "bg-brand-red text-white shadow-md shadow-brand-red/20"
                           : "bg-white text-brand-slate hover:bg-brand-red-subtle border border-brand-red-subtle"
-                      }`}
+                        }`}
                     >
                       {pageNum}
                     </button>

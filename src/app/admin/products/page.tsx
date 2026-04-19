@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase"
 import { Plus, Search, Filter, Edit2, Trash2, Save, Loader2, Percent, DollarSign, Settings, ChevronLeft, ChevronRight } from "lucide-react"
 import { Modal } from "@/components/ui/Modal"
+import { getProductsData, upsertProduct, deleteProduct as deleteProductAction } from "../actions"
 
 interface Product {
   id: string
@@ -44,30 +44,21 @@ export default function ProductsPage() {
     override_price: ""
   })
 
-  const supabase = createClient()
-
   useEffect(() => {
     fetchData()
   }, [])
 
   async function fetchData() {
     setLoading(true)
-
-    // Fetch Products with category joined
-    const { data: pData } = await supabase
-      .from("products")
-      .select(`*, pricing_config(*), categories(name)`)
-      .order("ref_no", { ascending: true })
-
-    // Fetch Categories for dropdown
-    const { data: cData } = await supabase
-      .from("categories")
-      .select("*")
-      .order("name", { ascending: true })
-
-    if (pData) setProducts(pData)
-    if (cData) setCategories(cData)
-    setLoading(false)
+    try {
+      const { products, categories } = await getProductsData()
+      setProducts(products)
+      setCategories(categories)
+    } catch (err) {
+      return;
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleOpenAdd = () => {
@@ -105,54 +96,39 @@ export default function ProductsPage() {
     e.preventDefault()
     setIsSubmitting(true)
 
-    const productPayload = {
-      name: formData.name,
+    const productPayload: any = {
       ref_no: formData.ref_no,
+      name: formData.name,
       category_id: formData.category_id || null,
       description: formData.description
     }
+    if (isEditing) productPayload.id = formData.id
+
+    const configPayload = {
+      margin_type: formData.margin_type,
+      margin_value: parseFloat(formData.margin_value),
+      override_price: formData.override_price ? parseFloat(formData.override_price) : null
+    }
 
     try {
-      if (isEditing) {
-        // Update Product
-        await supabase.from("products").update(productPayload).eq("id", formData.id)
-
-        // Upsert Config
-        await supabase.from("pricing_config").upsert({
-          product_id: formData.id,
-          margin_type: formData.margin_type,
-          margin_value: parseFloat(formData.margin_value),
-          override_price: formData.override_price ? parseFloat(formData.override_price) : null
-        })
-      } else {
-        // Insert Product
-        const { data: newProd } = await supabase.from("products").insert([productPayload]).select().single()
-
-        // Insert Config
-        if (newProd) {
-          await supabase.from("pricing_config").insert([{
-            product_id: newProd.id,
-            margin_type: formData.margin_type,
-            margin_value: parseFloat(formData.margin_value),
-            override_price: formData.override_price ? parseFloat(formData.override_price) : null
-          }])
-        }
-      }
-
+      await upsertProduct(productPayload, configPayload)
       setIsModalOpen(false)
       fetchData()
     } catch (err) {
-      console.error(err)
-      alert("Error saving product details.")
+      alert("Error saving product.")
     } finally {
       setIsSubmitting(false)
     }
   }
 
   async function deleteProduct(id: string) {
-    if (!confirm("Are you sure? This will remove all related supplier prices.")) return
-    await supabase.from("products").delete().eq("id", id)
-    fetchData()
+    if (!confirm("Are you sure? This will remove the product and all associated price submissions.")) return
+    try {
+      await deleteProductAction(id)
+      fetchData()
+    } catch (err) {
+      alert("Error deleting product.")
+    }
   }
 
   const filteredProducts = products.filter(p => {

@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase"
 import { Plus, Search, MoreVertical, Copy, Check, Mail, ExternalLink, Trash2 } from "lucide-react"
 import { Modal } from "@/components/ui/Modal"
+import { getSuppliers, addSupplier, deleteSupplier } from "../actions"
 
 interface Supplier {
   id: string
@@ -21,29 +21,36 @@ export default function SuppliersPage() {
   const [newSupplier, setNewSupplier] = useState({ name: "", contact: "" })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const supabase = createClient()
-
   useEffect(() => {
     fetchSuppliers()
   }, [])
 
   async function fetchSuppliers() {
     setLoading(true)
-    const { data } = await supabase.from("suppliers").select("*").order("name")
-    if (data) setSuppliers(data)
-    setLoading(false)
+    try {
+      const data = await getSuppliers()
+      if (data) setSuppliers(data)
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleAddSupplier(e: React.FormEvent) {
     e.preventDefault()
     setIsSubmitting(true)
-    const { error } = await supabase.from("suppliers").insert([newSupplier])
-    if (!error) {
+    try {
+      await addSupplier(newSupplier)
       setIsModalOpen(false)
       setNewSupplier({ name: "", contact: "" })
       fetchSuppliers()
+    } catch (error) {
+      console.error(error)
+      alert("Error adding supplier.")
+    } finally {
+      setIsSubmitting(false)
     }
-    setIsSubmitting(false)
   }
 
   const copyToClipboard = (token: string, id: string) => {
@@ -56,10 +63,10 @@ export default function SuppliersPage() {
   async function handleDeleteSupplier(id: string) {
     if (!window.confirm("Are you sure you want to delete this supplier? This action cannot be undone.")) return
 
-    const { error } = await supabase.from("suppliers").delete().eq("id", id)
-    if (!error) {
+    try {
+      await deleteSupplier(id)
       fetchSuppliers()
-    } else {
+    } catch (error) {
       alert("Error deleting supplier. They may have active price lists.")
     }
   }

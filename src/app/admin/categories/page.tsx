@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase"
 import { Plus, Search, Edit2, Trash2, Save, Loader2, FolderTree } from "lucide-react"
 import { Modal } from "@/components/ui/Modal"
+import { getCategories, upsertCategory, deleteCategory as deleteCategoryAction } from "../actions"
 
 interface Category {
   id: string
@@ -29,21 +29,20 @@ export default function CategoriesPage() {
     description: ""
   })
 
-  const supabase = createClient()
-
   useEffect(() => {
     fetchCategories()
   }, [])
 
   async function fetchCategories() {
     setLoading(true)
-    const { data } = await supabase
-      .from("categories")
-      .select("*")
-      .order("name", { ascending: true })
-
-    if (data) setCategories(data)
-    setLoading(false)
+    try {
+      const data = await getCategories()
+      setCategories(data)
+    } catch (err) {
+      return;
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleOpenAdd = () => {
@@ -67,23 +66,19 @@ export default function CategoriesPage() {
     setIsSubmitting(true)
 
     const slug = formData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '')
-    const payload = {
+    const payload: any = {
       name: formData.name,
       slug: slug,
       description: formData.description
     }
 
-    try {
-      if (isEditing) {
-        await supabase.from("categories").update(payload).eq("id", formData.id)
-      } else {
-        await supabase.from("categories").insert([payload])
-      }
+    if (isEditing) payload.id = formData.id
 
+    try {
+      await upsertCategory(payload)
       setIsModalOpen(false)
       fetchCategories()
     } catch (err) {
-      console.error(err)
       alert("Error saving category.")
     } finally {
       setIsSubmitting(false)
@@ -92,8 +87,12 @@ export default function CategoriesPage() {
 
   async function deleteCategory(id: string) {
     if (!confirm("Are you sure? Products in this category will become uncategorized.")) return
-    await supabase.from("categories").delete().eq("id", id)
-    fetchCategories()
+    try {
+      await deleteCategoryAction(id)
+      fetchCategories()
+    } catch (err) {
+      alert("Error deleting category. It might be linked to products.")
+    }
   }
 
   const filteredCategories = categories.filter(c =>
