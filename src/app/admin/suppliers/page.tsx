@@ -31,7 +31,7 @@ export default function SuppliersPage() {
       const data = await getSuppliers()
       if (data) setSuppliers(data)
     } catch (error) {
-      console.error(error)
+      throw error;
     } finally {
       setLoading(false)
     }
@@ -46,7 +46,7 @@ export default function SuppliersPage() {
       setNewSupplier({ name: "", contact: "" })
       fetchSuppliers()
     } catch (error) {
-      console.error(error)
+
       alert("Error adding supplier.")
     } finally {
       setIsSubmitting(false)
@@ -100,7 +100,7 @@ export default function SuppliersPage() {
                 <div className="w-12 h-12 rounded-2xl bg-brand-pink flex items-center justify-center text-brand-red font-bold text-lg">
                   {supplier.name.charAt(0)}
                 </div>
-                <button 
+                <button
                   onClick={() => handleDeleteSupplier(supplier.id)}
                   className="p-2 text-brand-slate hover:bg-brand-pink hover:text-red-500 rounded-xl opacity-0 group-hover:opacity-100 transition-all"
                 >
