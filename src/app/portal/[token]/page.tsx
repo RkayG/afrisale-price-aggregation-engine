@@ -10,6 +10,7 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
   const [supplier, setSupplier] = useState<any>(null)
   const [products, setProducts] = useState<any[]>([])
   const [prices, setPrices] = useState<Record<string, string>>({})
+  const [originalPrices, setOriginalPrices] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -33,9 +34,16 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
       // 2. Fetch Products, Categories and Prices on the server
       const { categories, products, initialPrices } = await getPortalData(sData.id)
 
+      // Format initial prices to 2 decimal places for consistent UI
+      const formattedPrices: Record<string, string> = {}
+      Object.entries(initialPrices).forEach(([id, price]) => {
+        formattedPrices[id] = parseFloat(price).toFixed(2)
+      })
+
       setCategories(categories)
       setProducts(products)
-      setPrices(initialPrices)
+      setPrices(formattedPrices)
+      setOriginalPrices(formattedPrices)
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.")
     } finally {
@@ -52,16 +60,22 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
     setCurrentPage(1)
   }, [searchTerm, selectedCategoryId])
 
-  async function updatePrice(productId: string, price: string) {
+  async function updatePrice(productId: string) {
     if (!supplier) return
+    const price = prices[productId]
     const numPrice = parseFloat(price)
+    
     if (isNaN(numPrice)) return
+    if (numPrice < 0) {
+      alert("Price cannot be negative. Please enter a valid price.")
+      return
+    }
 
     setSaving(productId)
 
     try {
       await upsertSupplierPrice(supplier.id, productId, numPrice)
-      setPrices(prev => ({ ...prev, [productId]: price }))
+      setOriginalPrices(prev => ({ ...prev, [productId]: price }))
       setTimeout(() => setSaving(null), 1000)
     } catch (error) {
       setSaving(null)
@@ -209,19 +223,27 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
                         <input
                           type="number"
                           step="0.01"
+                          min="0"
                           placeholder="0.00"
-                          className="w-full pl-10 pr-12 py-4 bg-brand-gray border-2 border-transparent focus:border-brand-red/20 focus:bg-white outline-none transition-all text-lg font-black text-brand-maroon placeholder:text-brand-slate/20"
+                          className="w-full pl-10 pr-16 py-4 bg-brand-gray border-2 border-transparent focus:border-brand-red/20 focus:bg-white outline-none transition-all text-base font-bold text-brand-maroon placeholder:text-brand-slate/20"
                           value={prices[product.id] || ""}
                           onChange={(e) => setPrices({ ...prices, [product.id]: e.target.value })}
-                          onBlur={(e) => updatePrice(product.id, e.target.value)}
                         />
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                           {saving === product.id ? (
-                            <Loader2 className="w-6 h-6 text-brand-red animate-spin" />
-                          ) : prices[product.id] ? (
-                            <CheckCircle2 className="w-6 h-6 text-[#81c408] animate-in zoom-in" />
+                            <Loader2 className="w-5 h-5 text-brand-red animate-spin" />
+                          ) : (prices[product.id] !== originalPrices[product.id]) ? (
+                            <button
+                              onClick={() => updatePrice(product.id)}
+                              className="bg-brand-red text-white p-2 rounded-lg hover:bg-brand-maroon transition-all shadow-md group/btn"
+                              title="Save Changes"
+                            >
+                              <Save size={16} className="group-hover/btn:scale-110 transition-transform" />
+                            </button>
+                          ) : (prices[product.id] && prices[product.id] !== "") ? (
+                            <CheckCircle2 className="w-5 h-5 text-[#81c408] animate-in zoom-in" />
                           ) : (
-                            <Save className="w-6 h-6 text-brand-slate/10" />
+                            <Save className="w-5 h-5 text-brand-slate/10" />
                           )}
                         </div>
                       </div>
