@@ -32,7 +32,7 @@ export default function PublicPriceList() {
     try {
       const data = await getPublicPrices()
       setPrices(data)
-      
+
       // Find the most recent update time
       const latest = data.reduce((acc: any, curr: any) => {
         const entry = Array.isArray(curr.final_prices) ? curr.final_prices[0] : curr.final_prices
@@ -51,7 +51,7 @@ export default function PublicPriceList() {
         }))
       }
     } catch (err) {
-      console.error("Price fetch error:", err)
+
     } finally {
       setLoading(false)
     }

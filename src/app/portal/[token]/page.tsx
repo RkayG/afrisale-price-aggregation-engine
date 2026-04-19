@@ -32,7 +32,7 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
 
       // 2. Fetch Products, Categories and Prices on the server
       const { categories, products, initialPrices } = await getPortalData(sData.id)
-      
+
       setCategories(categories)
       setProducts(products)
       setPrices(initialPrices)
@@ -97,7 +97,7 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
     <div className="min-h-screen bg-brand-gray pb-12 font-sans px-4 sm:px-6">
       {/* Portal Header */}
       <header className="max-w-3xl mx-auto py-8">
-        <div className="bg-brand-maroon text-white p-8 rounded-[2rem] shadow-xl relative overflow-hidden">
+        <div className="bg-brand-maroon text-white p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-brand-red opacity-10 rounded-full -translate-y-1/2 translate-x-1/2" />
           <div className="flex items-center gap-3 mb-2 opacity-70">
             <Package size={18} />
@@ -129,7 +129,7 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
           <input
             type="text"
             placeholder="Search by ref or name..."
-            className="w-full pl-12 pr-4 py-3 bg-white border border-brand-red-subtle rounded-2xl outline-none focus:border-brand-red/30 transition-all text-sm shadow-sm"
+            className="w-full pl-12 pr-4 py-3 bg-white border border-brand-red-subtle  outline-none focus:border-brand-red/30 transition-all text-sm shadow-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -140,7 +140,7 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
           <select
             value={selectedCategoryId}
             onChange={(e) => setSelectedCategoryId(e.target.value)}
-            className="appearance-none w-full pl-10 pr-8 py-3 bg-white border border-brand-red-subtle rounded-2xl outline-none focus:border-brand-red/30 transition-all text-xs font-bold text-brand-slate cursor-pointer shadow-sm"
+            className="appearance-none w-full pl-10 pr-8 py-3 bg-white border border-brand-red-subtle outline-none focus:border-brand-red/30 transition-all text-xs font-bold text-brand-slate cursor-pointer shadow-sm"
           >
             <option value="">All Categories</option>
             {categories.map(c => (
@@ -165,7 +165,7 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
 
           if (filtered.length === 0) {
             return (
-              <div className="text-center py-20 bg-white/50 rounded-3xl border border-dashed border-brand-red-subtle">
+              <div className="text-center py-20 bg-white/50  border border-dashed border-brand-red-subtle">
                 <p className="text-brand-slate/60 font-medium">No matches found for your criteria.</p>
               </div>
             )
@@ -176,7 +176,7 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
               {paginated.map((product) => (
                 <div
                   key={product.id}
-                  className="bg-white p-8 rounded-3xl border border-brand-red-subtle shadow-sm hover:shadow-md transition-all group"
+                  className="bg-white p-8 border border-brand-red-subtle shadow-sm hover:shadow-md transition-all group"
                 >
                   <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
                     <div className="flex-1 space-y-2">
@@ -210,7 +210,7 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
                           type="number"
                           step="0.01"
                           placeholder="0.00"
-                          className="w-full pl-10 pr-12 py-4 bg-brand-gray border-2 border-transparent focus:border-brand-red/20 focus:bg-white rounded-[1.25rem] outline-none transition-all text-lg font-black text-brand-maroon placeholder:text-brand-slate/20"
+                          className="w-full pl-10 pr-12 py-4 bg-brand-gray border-2 border-transparent focus:border-brand-red/20 focus:bg-white outline-none transition-all text-lg font-black text-brand-maroon placeholder:text-brand-slate/20"
                           value={prices[product.id] || ""}
                           onChange={(e) => setPrices({ ...prices, [product.id]: e.target.value })}
                           onBlur={(e) => updatePrice(product.id, e.target.value)}
