@@ -205,7 +205,7 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
                         Supply Price (£)
                       </label>
                       <div className="relative group/input">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-maroon font-black text-lg">$</div>
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-maroon font-black text-lg">£</div>
                         <input
                           type="number"
                           step="0.01"

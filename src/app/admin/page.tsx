@@ -127,7 +127,7 @@ export default function AdminDashboard() {
                           <td key={s.id} className={`px-6 py-4 text-center text-sm font-medium ${isLowest ? "text-brand-red font-bold" : "text-brand-slate/50"}`}>
                             {sPrice ? (
                               <div className="flex flex-col items-center">
-                                <span>${Number(sPrice.price).toFixed(2)}</span>
+                                <span>£{Number(sPrice.price).toFixed(2)}</span>
                                 {isLowest && <div className="text-[8px] font-black uppercase text-brand-red mt-0.5">Winner</div>}
                               </div>
                             ) : "—"}
@@ -137,13 +137,13 @@ export default function AdminDashboard() {
 
                       <td className="px-6 py-4 text-center bg-brand-pink/10">
                         <span className="text-sm font-black text-brand-red">
-                          {lowest !== null && lowest !== undefined ? `$${Number(lowest).toFixed(2)}` : "—"}
+                          {lowest !== null && lowest !== undefined ? `£${Number(lowest).toFixed(2)}` : "—"}
                         </span>
                       </td>
 
                       <td className="px-6 py-4 text-center bg-brand-red-subtle/10">
                         <span className="text-base font-black text-brand-maroon">
-                          {final !== null && final !== undefined ? `$${Number(final).toFixed(2)}` : "—"}
+                          {final !== null && final !== undefined ? `£${Number(final).toFixed(2)}` : "—"}
                         </span>
                       </td>
                     </tr>
