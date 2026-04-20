@@ -57,11 +57,13 @@ export default function PublicPriceList() {
     }
   }
 
-  const filteredPrices = prices.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.ref_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.category || "").toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredPrices = prices
+    .filter(p =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.ref_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.category || "").toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => a.ref_no.localeCompare(b.ref_no, undefined, { numeric: true, sensitivity: 'base' }))
 
   // Group by category
   const groupedPrices = filteredPrices.reduce((acc: any, item: any) => {

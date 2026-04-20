@@ -64,7 +64,7 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
     if (!supplier) return
     const price = prices[productId]
     const numPrice = parseFloat(price)
-    
+
     if (isNaN(numPrice)) return
     if (numPrice < 0) {
       alert("Price cannot be negative. Please enter a valid price.")
@@ -167,12 +167,14 @@ export default function SupplierPortal({ params }: { params: Promise<{ token: st
       {/* Product List */}
       <main className="max-w-3xl mx-auto space-y-4">
         {(() => {
-          const filtered = products.filter(p => {
-            const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              p.ref_no.toLowerCase().includes(searchTerm.toLowerCase())
-            const matchesCategory = selectedCategoryId === "" || p.category_id === selectedCategoryId
-            return matchesSearch && matchesCategory
-          })
+          const filtered = products
+            .filter(p => {
+              const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                p.ref_no.toLowerCase().includes(searchTerm.toLowerCase())
+              const matchesCategory = selectedCategoryId === "" || p.category_id === selectedCategoryId
+              return matchesSearch && matchesCategory
+            })
+            .sort((a, b) => a.ref_no.localeCompare(b.ref_no, undefined, { numeric: true, sensitivity: 'base' }))
 
           const totalPages = Math.ceil(filtered.length / itemsPerPage)
           const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)

@@ -131,12 +131,14 @@ export default function ProductsPage() {
     }
   }
 
-  const filteredProducts = products.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.ref_no.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = selectedCategoryId === "" || p.category_id === selectedCategoryId
-    return matchesSearch && matchesCategory
-  })
+  const filteredProducts = products
+    .filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.ref_no.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesCategory = selectedCategoryId === "" || p.category_id === selectedCategoryId
+      return matchesSearch && matchesCategory
+    })
+    .sort((a, b) => a.ref_no.localeCompare(b.ref_no, undefined, { numeric: true, sensitivity: 'base' }))
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)

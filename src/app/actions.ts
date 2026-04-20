@@ -17,7 +17,7 @@ export async function getPublicPrices() {
         updated_at
       )
     `)
-    .order("name", { ascending: true })
+    .order("ref_no", { ascending: true })
 
   if (error) throw error
   return data || []
